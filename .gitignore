@@ -1,2 +1,6 @@
-crypto_project.zip
 venv/
+db.sqlite3
+*.zip
+*.tar.gz
+__pycache__/
+*.pyc
