@@ -1,7 +1,8 @@
-from django.shortcuts import render
-import json
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import json
 
+@csrf_exempt
 def predict_price(request):
     if request.method == "POST":
         try:
@@ -9,19 +10,14 @@ def predict_price(request):
             crypto = data.get("crypto")
             days = data.get("days")
             algorithm = data.get("algorithm")
-            wallet = data.get("wallet", None)  # حالا اختیاری شد!
 
             if not crypto or not days or not algorithm:
-                return JsonResponse({"error": "لطفاً تمام فیلدها را پر کنید."}, status=400)
+                return JsonResponse({"error": "Missing required fields."}, status=400)
 
-            predicted_price = 50000  # مقدار فرضی
-
-            response_data = {"price": predicted_price}
-            if wallet:
-                response_data["wallet"] = wallet  # فقط اگر کیف پول باشد
-
-            return JsonResponse(response_data)
+            predicted_price = 50000  # مقدار تستی
+            return JsonResponse({"predicted_price": predicted_price, "algorithm": algorithm})
 
         except json.JSONDecodeError:
-            return JsonResponse({"error": "درخواست نامعتبر است."}, status=400)
-# Create your views here.
+            return JsonResponse({"error": "Invalid request format."}, status=400)
+
+    return JsonResponse({"error": "Only POST requests are allowed."}, status=405)
