@@ -1,4 +1,5 @@
-from django.db import models
+# /root/backend/prediction/models.py
+
 import pandas as pd
 import numpy as np
 import requests
@@ -17,9 +18,9 @@ def get_crypto_data(crypto, days):
     """
     دریافت داده‌های تاریخی ارز دیجیتال از CoinGecko
     """
-    url = f"https://api.coingecko.com/api/v3/coins/{crypto}/market_chart?vs_currency=usd&days={days}"
-    response = requests.get(url)
-    # بررسی وضعیت پاسخ
+    url = f"https://api.coingecko.com/api/v3/coins/{crypto}/market_chart"
+    params = {"vs_currency": "usd", "days": days}
+    response = requests.get(url, params=params)
     if response.status_code != 200:
         print(f"خطا در دریافت داده: {response.status_code}")
         return None
@@ -28,12 +29,12 @@ def get_crypto_data(crypto, days):
     if not prices:
         print("داده‌ای دریافت نشد.")
         return None
-    # تأخیر برای جلوگیری از بلاک شدن
+    # تأخیر به منظور جلوگیری از بلاک شدن API
     time.sleep(1)
     dates = pd.date_range(end=datetime.now(), periods=len(prices))
     df = pd.DataFrame({"price": prices}, index=dates)
     df["price_change"] = df["price"].pct_change()
-    df["SMA"] = df["price"].rolling(window=3, min_periods=1).mean()
+    df["SMA"] = df["price"].rolling(window=14, min_periods=1).mean()
     df.dropna(inplace=True)
     return df
 
@@ -49,10 +50,10 @@ def train_lstm_model(data):
     prices = data["price"].values
     scaler = MinMaxScaler(feature_range=(0, 1))
     scaled_prices = scaler.fit_transform(prices.reshape(-1, 1))
-    n_steps = 3  # استفاده از 3 داده گذشته (برای نمونه؛ در پروژه واقعی ممکن است این مقدار تغییر کند)
+    n_steps = 30  # استفاده از 30 داده گذشته به عنوان ورودی
     X, y = [], []
     for i in range(n_steps, len(scaled_prices)):
-        X.append(scaled_prices[i - n_steps:i, 0])
+        X.append(scaled_prices[i-n_steps:i, 0])
         y.append(scaled_prices[i, 0])
     X = np.array(X)
     y = np.array(y)
@@ -64,19 +65,19 @@ def train_lstm_model(data):
         Dense(1)
     ])
     model.compile(optimizer=Adam(learning_rate=0.001), loss="mean_squared_error")
-    model.fit(X, y, epochs=5, verbose=0)
+    model.fit(X, y, epochs=20, verbose=0)
     return model, n_steps, scaler
 
 def predict_xgboost(data):
     X = np.arange(len(data)).reshape(-1, 1)
     y = data["price"].values
-    model = xgb.XGBRegressor(objective="reg:squarederror", n_estimators=10)
+    model = xgb.XGBRegressor(objective="reg:squarederror", n_estimators=100)
     model.fit(X, y)
     prediction = model.predict(np.array([[len(data)]]))[0]
     return prediction
 
 def predict_arima(data):
-    model = ARIMA(data["price"], order=(1, 1, 0))
+    model = ARIMA(data["price"], order=(5, 1, 0))
     model_fit = model.fit()
     prediction = model_fit.forecast()[0]
     return prediction
