@@ -1,8 +1,9 @@
 from django.db import models
+# mymodels.py
 import pandas as pd
 import numpy as np
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
@@ -11,7 +12,6 @@ from tensorflow.keras.layers import LSTM, Dense
 from tensorflow.keras.optimizers import Adam
 from statsmodels.tsa.arima.model import ARIMA
 import xgboost as xgb
-import time
 
 def get_crypto_data(crypto, days):
     """
@@ -19,17 +19,13 @@ def get_crypto_data(crypto, days):
     """
     url = f"https://api.coingecko.com/api/v3/coins/{crypto}/market_chart?vs_currency=usd&days={days}"
     response = requests.get(url)
-    # بررسی وضعیت پاسخ
     if response.status_code != 200:
-        print(f"خطا در دریافت داده: {response.status_code}")
         return None
     data = response.json()
     prices = [item[1] for item in data.get("prices", [])]
     if not prices:
-        print("داده‌ای دریافت نشد.")
         return None
-    # تأخیر برای جلوگیری از بلاک شدن
-    time.sleep(1)
+    # ایجاد DataFrame نمونه
     dates = pd.date_range(end=datetime.now(), periods=len(prices))
     df = pd.DataFrame({"price": prices}, index=dates)
     df["price_change"] = df["price"].pct_change()
@@ -49,7 +45,7 @@ def train_lstm_model(data):
     prices = data["price"].values
     scaler = MinMaxScaler(feature_range=(0, 1))
     scaled_prices = scaler.fit_transform(prices.reshape(-1, 1))
-    n_steps = 3  # استفاده از 3 داده گذشته (برای نمونه؛ در پروژه واقعی ممکن است این مقدار تغییر کند)
+    n_steps = 3  # استفاده از 3 داده گذشته (برای نمونه)
     X, y = [], []
     for i in range(n_steps, len(scaled_prices)):
         X.append(scaled_prices[i - n_steps:i, 0])
